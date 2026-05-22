@@ -15,12 +15,16 @@ export default function BrowseClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const current = searchParams.get("url") ?? "";
-  const mode = (searchParams.get("mode") ?? "visual") as "visual" | "html";
+  const mode = (searchParams.get("mode") ?? "live") as "live" | "visual" | "html";
 
   const [value, setValue] = useState(current);
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const [frameSrc, setFrameSrc] = useState<string>("");
+  const [sessionId, setSessionId] = useState<string>("");
+  const [accessToken, setAccessToken] = useState<string>("");
 
   const iframeSrc = useMemo(() => {
     if (!current) return "";
@@ -41,10 +45,83 @@ export default function BrowseClient() {
     setLoading(true);
   }, [current, mode]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { supabaseBrowser } = await import("@/lib/supabase/browser");
+      const supabase = supabaseBrowser();
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token ?? "";
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
+      if (!cancelled) setAccessToken(token);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    (async () => {
+      const res = await fetch("/api/session/create", {
+        method: "POST",
+        headers: { authorization: `Bearer ${accessToken}` }
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!cancelled && json?.ok && json?.sessionId) setSessionId(String(json.sessionId));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (mode !== "live") return;
+    if (!sessionId || !accessToken) return;
+    const base = process.env.NEXT_PUBLIC_WORKER_WS_URL || "";
+    if (!base) return;
+
+    const wsUrl = `${base.replace(/\/$/, "")}/ws?sessionId=${encodeURIComponent(sessionId)}&token=${encodeURIComponent(accessToken)}`;
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: "stream", on: true }));
+      if (current) ws.send(JSON.stringify({ type: "nav", url: current }));
+    };
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(String(ev.data));
+        if (msg?.type === "frame" && msg?.mime && msg?.data) {
+          setFrameSrc(`data:${msg.mime};base64,${msg.data}`);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    ws.onerror = () => {
+      setLoading(false);
+    };
+    ws.onclose = () => {
+      wsRef.current = null;
+    };
+    return () => {
+      try {
+        ws.close();
+      } catch {}
+    };
+  }, [mode, sessionId, accessToken, current]);
+
   function go(raw: string) {
     const normalized = normalizeUrl(raw);
     if (!normalized) return;
     router.push(`/browse?url=${encodeURIComponent(normalized)}&mode=${mode}`);
+    if (mode === "live" && wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "nav", url: normalized }));
+    }
   }
 
   return (
@@ -61,6 +138,14 @@ export default function BrowseClient() {
 
           <div className={styles.right}>
             <div className={styles.mode}>
+              <button
+                type="button"
+                className={`${styles.modeBtn} ${mode === "live" ? styles.modeBtnActive : ""}`}
+                onClick={() => router.push(`/browse?${current ? `url=${encodeURIComponent(current)}&` : ""}mode=live`)}
+                title="Interactive remote browser (requires worker)"
+              >
+                Live
+              </button>
               <button
                 type="button"
                 className={`${styles.modeBtn} ${mode === "visual" ? styles.modeBtnActive : ""}`}
@@ -129,13 +214,17 @@ export default function BrowseClient() {
           <div className={styles.status} aria-live="polite">
             {loading ? <span className={styles.dot} /> : <span className={`${styles.dot} ${styles.dotOk}`} />}
             {loading
-              ? mode === "visual"
-                ? "Rendering (Chromium)…"
-                : "Loading sanitized view…"
+              ? mode === "live"
+                ? "Connecting (worker)…"
+                : mode === "visual"
+                  ? "Rendering (Chromium)…"
+                  : "Loading sanitized view…"
               : current
-                ? mode === "visual"
-                  ? "Rendered"
-                  : "Ready"
+                ? mode === "live"
+                  ? "Live"
+                  : mode === "visual"
+                    ? "Rendered"
+                    : "Ready"
                 : "Enter a URL to begin"}
           </div>
         </div>
@@ -159,6 +248,48 @@ export default function BrowseClient() {
               onLoad={() => setLoading(false)}
               title="Sanitized page viewer"
             />
+          ) : mode === "live" ? (
+            <div
+              className={styles.liveWrap}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+                // Let browser handle shortcuts like Cmd+L etc.
+                if (e.metaKey || e.ctrlKey) return;
+                if (e.key.length === 1) {
+                  wsRef.current.send(JSON.stringify({ type: "type", text: e.key }));
+                } else {
+                  wsRef.current.send(JSON.stringify({ type: "key", key: e.key }));
+                }
+              }}
+              onWheel={(e) => {
+                if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+                wsRef.current.send(JSON.stringify({ type: "scroll", dx: e.deltaX, dy: e.deltaY }));
+              }}
+            >
+              {!process.env.NEXT_PUBLIC_WORKER_WS_URL ? (
+                <div className={styles.empty}>
+                  <div className={styles.emptyTitle}>Missing worker URL</div>
+                  <div className={styles.emptyText}>Set `NEXT_PUBLIC_WORKER_WS_URL` (e.g. `wss://your-worker.example`).</div>
+                </div>
+              ) : (
+                <img
+                  className={styles.render}
+                  src={frameSrc}
+                  alt="Live remote browser stream"
+                  onLoad={() => setLoading(false)}
+                  onClick={(e) => {
+                    const el = e.currentTarget;
+                    const rect = el.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * el.naturalWidth;
+                    const y = ((e.clientY - rect.top) / rect.height) * el.naturalHeight;
+                    if (wsRef.current?.readyState === WebSocket.OPEN) {
+                      wsRef.current.send(JSON.stringify({ type: "click", x, y }));
+                    }
+                  }}
+                />
+              )}
+            </div>
           ) : (
             <img
               className={styles.render}
@@ -175,10 +306,13 @@ export default function BrowseClient() {
         <div className={styles.orb} aria-hidden />
         <div className={styles.task}>{current ? "WEB BROWSER" : "WEB BROWSER"}</div>
         <div className={styles.hint}>
-          {mode === "visual" ? "Visual mode is a screenshot (non-interactive)" : "Tip: try a domain only (we assume https://)"}
+          {mode === "live"
+            ? "Live mode is interactive (remote browser)"
+            : mode === "visual"
+              ? "Visual mode is a screenshot (non-interactive)"
+              : "Tip: try a domain only (we assume https://)"}
         </div>
       </footer>
     </main>
   );
 }
-

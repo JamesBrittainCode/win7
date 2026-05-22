@@ -1,0 +1,16 @@
+{
+  "name": "win7-proxy-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --enable-source-maps src/server.mjs",
+    "start": "node --enable-source-maps src/server.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.49.4",
+    "playwright": "1.53.2",
+    "ws": "8.18.3"
+  }
+}
+

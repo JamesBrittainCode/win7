@@ -14,7 +14,8 @@
     "puppeteer-core": "24.9.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "sanitize-html": "2.16.0"
+    "sanitize-html": "2.16.0",
+    "@supabase/supabase-js": "2.49.4"
   },
   "devDependencies": {
     "@types/node": "22.15.31",
