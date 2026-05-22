@@ -1,0 +1,221 @@
+.desktop {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px 76px;
+  position: relative;
+}
+
+.wallpaperGlow {
+  display: none;
+}
+
+@keyframes floaty {
+  0% {
+    transform: translate3d(-1.5%, -0.8%, 0) rotate(-1deg);
+  }
+  50% {
+    transform: translate3d(1.5%, 1.2%, 0) rotate(1deg);
+  }
+  100% {
+    transform: translate3d(-1.5%, -0.8%, 0) rotate(-1deg);
+  }
+}
+
+.window {
+  width: min(920px, 96vw);
+  border-radius: var(--radius);
+  background: var(--window);
+  border: 2px solid var(--border);
+  box-shadow: 0 10px 24px var(--shadow);
+  overflow: hidden;
+  transform: translateY(10px);
+  animation: in 520ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
+}
+
+@keyframes in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(10px) scale(1);
+  }
+}
+
+.titlebar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, #1a2aa8, #000080);
+  border-bottom: 2px solid #000060;
+  color: #fff;
+}
+
+.traffic {
+  display: flex;
+  gap: 7px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22), 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.red {
+  background: radial-gradient(circle at 30% 30%, #ffb3ae, #ff5f56);
+}
+.yellow {
+  background: radial-gradient(circle at 30% 30%, #ffe7a0, #f2c94c);
+}
+.green {
+  background: radial-gradient(circle at 30% 30%, #baf1cf, #27ae60);
+}
+
+.title {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-shadow: none;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+}
+
+.content {
+  padding: 18px 18px 22px;
+}
+
+.lede {
+  margin: 0 0 18px;
+  line-height: 1.45;
+  color: rgba(0, 0, 0, 0.86);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.primary,
+.secondary {
+  padding: 10px 14px;
+  border-radius: 4px;
+  border: 2px solid var(--border-lo);
+  border-top-color: var(--border-hi);
+  border-left-color: var(--border-hi);
+  background: var(--window-2);
+  color: #111;
+  transition: transform 180ms ease, filter 180ms ease;
+  will-change: transform;
+}
+
+.primary {
+  font-weight: 700;
+}
+
+.primary:hover,
+.secondary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.primary:active,
+.secondary:active {
+  transform: translateY(0px) scale(0.995);
+}
+
+.tips {
+  display: grid;
+  gap: 10px;
+}
+
+.tip {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #f7f7f7;
+  border: 1px solid #c9c9c9;
+}
+
+.badgeOk,
+.badgeWarn,
+.badgeDanger {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.badgeOk {
+  border-color: rgba(39, 174, 96, 0.6);
+}
+.badgeWarn {
+  border-color: rgba(242, 201, 76, 0.75);
+}
+.badgeDanger {
+  border-color: rgba(255, 95, 86, 0.7);
+}
+
+.tipTitle {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.tipText {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.72);
+}
+
+.taskbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 52px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 0 14px;
+  background: linear-gradient(180deg, #d5d5d5, #bdbdbd);
+  border-top: 2px solid #9b9b9b;
+}
+
+.orb {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(45, 156, 219, 0.85) 55%, rgba(8, 70, 145, 0.95));
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.34);
+}
+
+.task {
+  margin-left: 10px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.clock {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.85);
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 2px solid var(--border-lo);
+  border-top-color: var(--border-hi);
+  border-left-color: var(--border-hi);
+  background: #eaeaea;
+}
